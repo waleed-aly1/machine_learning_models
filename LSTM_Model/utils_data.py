@@ -4,7 +4,6 @@ import pandas as pd
 from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import StandardScaler
 
-# see https://brohrer.github.io/dataframe_indexing.html
 
 class DataManager:
     def __init__(self, params):
@@ -17,11 +16,7 @@ class DataManager:
 
         df_temp = pd.read_csv(self.params['file_name'])
         df_features_target = df_temp.loc[:, 'CLFH':'CL']
-
-        # see https://stackoverflow.com/questions/27905295/how-to-replace-nans-by-preceding-values-in-pandas-dataframe
         df_features_target.fillna(method='ffill', inplace=True)
-
-        # some additional preprocessing may be considered in future here
 
         self.df_features_target = df_features_target
 
