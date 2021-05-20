@@ -2,16 +2,18 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, TimeSeriesSplit, ParameterGrid, GridSearchCV
+from sklearn.svm import SVR
 import sklearn.metrics as metrics
 import matplotlib.pyplot as plt
 from matplotlib.dates import DateFormatter
 from tqdm import tqdm
 from math import sqrt
 from datetime import datetime
-from sklearn.linear_model import Ridge, Lasso, ElasticNet, LinearRegression, SGDRegressor
+from sklearn.ensemble import RandomForestRegressor
+
 
 # import data
-data = pd.read_csv('MarketData_ClosesOnly.csv', index_col=0)
+data = pd.read_csv('../data/MarketData_ClosesOnly.csv', index_col=0)
 
 # fill non-traded bars with previous data
 data.ffill(axis=0, inplace=True)
@@ -19,6 +21,55 @@ data.ffill(axis=0, inplace=True)
 # separate the independent variables from the dependent variable in X and Y
 X = data.iloc[:, 0:8]
 y = data.iloc[:, 8:9]
+
+
+
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.25, shuffle=False)
+
+
+test_index = X_test.index.values.tolist()
+
+scaler_x = StandardScaler()
+scaler_y = StandardScaler()
+scaler_x.fit(X_train)
+scaler_y.fit(y_train)
+
+X_train, X_test = scaler_x.transform(X_train), scaler_x.transform(X_test)
+y_train, y_test = scaler_y.transform(y_train), scaler_y.transform(y_test)
+
+
+
+RF_params = [{'max_depth': [25, 30,50],
+              'n_estimators':[50, 100,500]}]
+
+scorers = {'r2': 'r2',
+           'mea': 'neg_mean_absolute_error',
+           'mse': 'neg_mean_squared_error'}
+
+
+SVR_parameters = [{'kernel': ['rbf'],
+               'gamma': [.001, .01, .1],
+               'C': [1,10,100]}]
+
+gsc = GridSearchCV(SVR(), param_grid=SVR_parameters, scoring='neg_mean_squared_error',
+                   cv=TimeSeriesSplit(n_splits=5).split(X_train), verbose=10, n_jobs=-1, refit=True, return_train_score=False)
+
+gsc.fit(X_train, y_train)
+gsc_dataframe = pd.DataFrame(gsc.cv_results_)
+y_pred = gsc.predict(X_test)
+y_pred = scaler_y.inverse_transform(y_pred)
+y_test = scaler_y.inverse_transform(y_test)
+
+y_df = pd.DataFrame(index=pd.to_datetime(test_index))
+y_pred = y_pred.reshape(len(y_pred), )
+y_test = y_test.reshape(len(y_test), )
+y_df['y_pred'] = y_pred
+y_df['y_test'] = y_test
+y_df.plot()
+plt.tight_layout()
+plt.show()
 
 
 class ModelRun():
@@ -52,7 +103,8 @@ class ModelRun():
             if e == 0:
                 best_score = score
                 best_params = p
-            elif greater_is_better:
+
+            if greater_is_better:
                 if score > best_score:
                     best_score = score
                     best_params = p
@@ -180,8 +232,8 @@ class ModelRun():
         fig.tight_layout()
         plt.show()
 
-params = [{'alpha':[1e-3, 1e-2, 1e-1 ,1],
-           'l1_ratio':[.5, .7, .9, .95, .99, 1]}]
 
+RF_params = [{'max_depth': [30],
+              'n_estimators':[100]}]
 
-ModelRun(X, y, ElasticNet(), params, no_splits=10, scalar=StandardScaler).foward_chain_cv(scoring_metric='MAE')
+ModelRun(X, y, RandomForestRegressor(random_state=0), RF_params, no_splits=5, scalar=None).foward_chain_cv(scoring_metric='MSE')

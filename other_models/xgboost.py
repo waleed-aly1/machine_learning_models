@@ -5,7 +5,7 @@ import pickle
 
 
 # import data
-data = pd.read_csv('MarketData_ClosesOnly.csv', index_col=0)
+data = pd.read_csv('../data/MarketData_ClosesOnly.csv', index_col=0)
 
 # fill non-traded bars with previous data
 data.ffill(axis=0, inplace=True)
